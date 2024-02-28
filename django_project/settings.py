@@ -3,6 +3,7 @@ from environs import Env
 # config/settings.py
 # django-debug-toolbar
 import socket
+import os
 hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
 INTERNAL_IPS = [ip[:-1] + "1" for ip in ips]
 
@@ -194,10 +195,18 @@ SESSION_COOKIE_SECURE = env.bool("DJANGO_SESSION_COOKIE_SECURE", default=True)
 CSRF_COOKIE_SECURE = env.bool("DJANGO_CSRF_COOKIE_SECURE", default=True)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # new
 
-USE_S3 = True
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = "/media/"
 
 
-if USE_S3:
+
+
+# Default storage settings, with the staticfiles storage updated.
+# See https://docs.djangoproject.com/en/5.0/ref/settings/#std-setting-STORAGES
+
+local = env.bool("LOCAL", default=False)
+
+if local:
     # aws settings
     AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY = env.str("AWS_SECRET_ACCESS_KEY")
@@ -216,5 +225,27 @@ if USE_S3:
     # s3 private media settings
     PRIVATE_MEDIA_LOCATION = "private"
     PRIVATE_FILE_STORAGE = "pages.storage_backends.PrivateMediaStorage"
+else:
+        # AWS S3 storage configuration
+    AWS_ACCESS_KEY_ID = os.environ.get('DEFAULT_STORAGE_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('DEFAULT_STORAGE_SECRET_ACCESS_KEY', '')
+    AWS_S3_REGION_NAME = os.environ.get('DEFAULT_STORAGE_REGION', '')
+    AWS_STORAGE_BUCKET_NAME=os.environ.get('DEFAULT_STORAGE_BUCKET', '')
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('DEFAULT_STORAGE_CUSTOM_DOMAIN', '')
+    AWS_S3_OBJECT_PARAMETERS = {
+        'ACL': 'public-read',
+        'CacheControl': 'max-age=86400',
+    }
+    STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    # ManifestStaticFilesStorage is recommended in production, to prevent
+    # outdated JavaScript / CSS assets being served from cache
+    # (e.g. after a Wagtail upgrade).
+    # See https://docs.djangoproject.com/en/5.0/ref/contrib/staticfiles/#manifeststaticfilesstorage
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+    },
+}
 
-MEDIA_ROOT = BASE_DIR / "media"
