@@ -28,3 +28,5 @@ environs==10.3.0
 dj-database-url==2.1.0
 python-dotenv==1.0.1
 pillow
+django-storages
+boto3
